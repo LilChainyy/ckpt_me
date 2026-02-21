@@ -43,5 +43,8 @@ coverage/
 htmlcov/
 .pytest_cache/
 
+# ckpt local reasoning store
+.ckpt/
+
 # Claude Code — keep agents shared, ignore user-local settings
 .claude/settings.local.json

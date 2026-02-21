@@ -6,8 +6,10 @@ The reasoning layer for every code change.
 
 ```
 apps/
-  web/     → Next.js frontend (deployed to Vercel as ckpt-web)
-  api/     → FastAPI backend (deployed to Vercel as ckpt-api)
+  web/       → Next.js frontend (deployed to Vercel as ckpt-web)
+  api/       → FastAPI backend (deployed to Vercel as ckpt-api)
+packages/
+  cli/       → ckpt CLI (pip install -e packages/cli)
 ```
 
 ## Agents
