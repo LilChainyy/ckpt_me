@@ -10,13 +10,19 @@ export interface DeadEnd {
   attempts: { label: string; outcome: string }[];
 }
 
+export interface CodeFile {
+  path: string;       // e.g. "ratelimiter/types.go"
+  content: string;
+}
+
 export interface Step {
   id: string;
   index: number;
   type: 'action' | 'constraint' | 'dead-end' | 'decision';
   title: string;
   reasoning: string;
-  codeSnapshot?: string;
+  files?: CodeFile[];          // full codebase state at this step
+  changedFiles?: string[];     // paths that changed vs previous step (for highlighting)
   constraintIds?: string[];
   deadEndId?: string;
 }

@@ -31,19 +31,20 @@ export default async function TimelinePage({ params }: TimelinePageProps) {
   }
 
   return (
-    <main className="page-wide">
-      <Nav
-        breadcrumbs={[
-          { label: "checkpoint", href: "/" },
-          { label: checkpoint.id },
-          { label: "brief", href: `/checkpoint/${id}/brief` },
-          { label: "timeline" },
-        ]}
-      />
-
-      <div className="page-header">
-        <div className="page-tag">step explorer</div>
-        <h1 className="page-title">{checkpoint.task}</h1>
+    <main className="tl-page">
+      <div className="tl-page-header">
+        <Nav
+          breadcrumbs={[
+            { label: "checkpoint", href: "/" },
+            { label: checkpoint.id },
+            { label: "brief", href: `/checkpoint/${id}/brief` },
+            { label: "timeline" },
+          ]}
+        />
+        <div style={{ marginBottom: 20 }}>
+          <div className="page-tag">step explorer</div>
+          <h1 className="page-title" style={{ marginBottom: 0 }}>{checkpoint.task}</h1>
+        </div>
       </div>
 
       <TimelineClient checkpoint={checkpoint} />

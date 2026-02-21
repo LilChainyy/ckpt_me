@@ -11,6 +11,7 @@
   "dependencies": {
     "next": "^15",
     "react": "^19",
+    "react-diff-view": "^3.3.2",
     "react-dom": "^19"
   },
   "devDependencies": {
