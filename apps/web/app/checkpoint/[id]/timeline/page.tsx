@@ -1,0 +1,52 @@
+import Nav from "../../../components/nav";
+import { checkpoints } from "../../../lib/mock-data";
+import type { Checkpoint } from "../../../lib/types";
+import Link from "next/link";
+import TimelineClient from "./timeline-client";
+
+interface TimelinePageProps {
+  params: Promise<{ id: string }>;
+}
+
+function getCheckpoint(id: string): Checkpoint | null {
+  return checkpoints[id] ?? null;
+}
+
+export default async function TimelinePage({ params }: TimelinePageProps) {
+  const { id } = await params;
+  const checkpoint = getCheckpoint(id);
+
+  if (!checkpoint) {
+    return (
+      <main className="page">
+        <Nav breadcrumbs={[{ label: "checkpoint" }, { label: "not found" }]} />
+        <div style={{ textAlign: "center", padding: "80px 0" }}>
+          <div className="page-tag">checkpoint not found</div>
+          <Link href="/" className="btn btn-secondary" style={{ marginTop: 24, display: "inline-flex" }}>
+            ← back to home
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page-wide">
+      <Nav
+        breadcrumbs={[
+          { label: "checkpoint", href: "/" },
+          { label: checkpoint.id },
+          { label: "brief", href: `/checkpoint/${id}/brief` },
+          { label: "timeline" },
+        ]}
+      />
+
+      <div className="page-header">
+        <div className="page-tag">step explorer</div>
+        <h1 className="page-title">{checkpoint.task}</h1>
+      </div>
+
+      <TimelineClient checkpoint={checkpoint} />
+    </main>
+  );
+}
