@@ -1,0 +1,9 @@
+{
+  "name": "@ckpt/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn src.index:app --reload --port 8000",
+    "build": "echo 'No build step for Python API'"
+  }
+}
