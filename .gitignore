@@ -42,3 +42,6 @@ coverage/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Claude Code — keep agents shared, ignore user-local settings
+.claude/settings.local.json
