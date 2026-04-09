@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  accounts      Account[]
+  sessions      Session[]
+  reasoning     Reasoning[]
+  checkpoints   Checkpoint[]
+  teamMembers   TeamMember[]
+  comments      Comment[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members   TeamMember[]
+  repos     Repo[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId String @map("team_id")
+  userId String @map("user_id")
+  role   String @default("member")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@map("team_members")
+}
+
+model Repo {
+  id        String   @id @default(uuid())
+  teamId    String   @map("team_id")
+  url       String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("repos")
+}
+
+model Reasoning {
+  id         String   @id @default(uuid())
+  commitHash String   @map("commit_hash")
+  reasoning  String?
+  author     String?
+  timestamp  DateTime @default(now())
+  files      Json     @default("[]")
+  parentHash String?  @map("parent_hash")
+  metadata   Json     @default("{}")
+  repoUrl    String?  @map("repo_url")
+  userId     String?  @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([commitHash])
+  @@index([repoUrl])
+  @@map("reasoning")
+}
+
+model Checkpoint {
+  id         String   @id @default(uuid())
+  task       String
+  author     String
+  repoUrl    String?  @map("repo_url")
+  handoffNote String? @map("handoff_note")
+  openItems  Json     @default("[]")
+  constraints Json    @default("[]")
+  deadEnds   Json     @default("[]") @map("dead_ends")
+  steps      Json     @default("[]")
+  userId     String?  @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  comments Comment[]
+  versions CheckpointVersion[]
+
+  @@index([repoUrl])
+  @@map("checkpoints")
+}
+
+model Comment {
+  id           String   @id @default(uuid())
+  checkpointId String   @map("checkpoint_id")
+  stepId       String?  @map("step_id")
+  userId       String   @map("user_id")
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  checkpoint   Checkpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@index([checkpointId])
+  @@map("comments")
+}
+
+model CheckpointVersion {
+  id           String   @id @default(uuid())
+  checkpointId String   @map("checkpoint_id")
+  version      Int
+  snapshot     Json
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  checkpoint   Checkpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@unique([checkpointId, version])
+  @@map("checkpoint_versions")
+}

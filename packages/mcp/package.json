@@ -1,0 +1,22 @@
+{
+  "name": "@ckpt/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "bin": {
+    "ckpt-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@ckpt/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5"
+  }
+}

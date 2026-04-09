@@ -1,9 +1,0 @@
-[project]
-name = "ckpt-api"
-version = "0.1.0"
-description = "The reasoning layer for every code change"
-requires-python = ">=3.10"
-dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn>=0.34.0",
-]

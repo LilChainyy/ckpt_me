@@ -1,25 +1,20 @@
-import Nav from "../../../components/nav";
-import { checkpoints } from "../../../lib/mock-data";
-import type { Checkpoint } from "../../../lib/types";
+import NavServer from "../../../components/nav-server";
 import Link from "next/link";
 import TimelineClient from "./timeline-client";
+import { getCheckpoint } from "../../../lib/api";
 
 interface TimelinePageProps {
   params: Promise<{ id: string }>;
 }
 
-function getCheckpoint(id: string): Checkpoint | null {
-  return checkpoints[id] ?? null;
-}
-
 export default async function TimelinePage({ params }: TimelinePageProps) {
   const { id } = await params;
-  const checkpoint = getCheckpoint(id);
+  const checkpoint = await getCheckpoint(id);
 
   if (!checkpoint) {
     return (
       <main className="page">
-        <Nav breadcrumbs={[{ label: "checkpoint" }, { label: "not found" }]} />
+        <NavServer breadcrumbs={[{ label: "checkpoint" }, { label: "not found" }]} />
         <div style={{ textAlign: "center", padding: "80px 0" }}>
           <div className="page-tag">checkpoint not found</div>
           <Link href="/" className="btn btn-secondary" style={{ marginTop: 24, display: "inline-flex" }}>
@@ -33,7 +28,7 @@ export default async function TimelinePage({ params }: TimelinePageProps) {
   return (
     <main className="tl-page">
       <div className="tl-page-header">
-        <Nav
+        <NavServer
           breadcrumbs={[
             { label: "checkpoint", href: "/" },
             { label: checkpoint.id },

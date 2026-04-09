@@ -78,10 +78,14 @@ export default function ComposePage() {
     setDeadEnds((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function handleGenerate() {
-    const id = `ckpt-${Date.now().toString(36)}`;
-    const checkpoint = {
-      id,
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    setSaving(true);
+    setError(null);
+
+    const payload = {
       task,
       author: "Sarah",
       handoffNote,
@@ -99,11 +103,24 @@ export default function ComposePage() {
       steps: [],
     };
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem(`ckpt:${id}`, JSON.stringify(checkpoint));
-    }
+    try {
+      const res = await fetch("/api/v1/checkpoints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    router.push(`/checkpoint/${id}/brief`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `Server error (${res.status})`);
+      }
+
+      const data = await res.json();
+      router.push(`/checkpoint/${data.id}/brief`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create checkpoint");
+      setSaving(false);
+    }
   }
 
   return (
@@ -241,8 +258,11 @@ export default function ComposePage() {
 
         {/* Submit */}
         <div className="compose-submit">
-          <button className="btn btn-primary" onClick={handleGenerate} type="button">
-            Generate checkpoint →
+          {error && (
+            <p style={{ color: "var(--dead)", fontSize: "13px", marginBottom: 12 }}>{error}</p>
+          )}
+          <button className="btn btn-primary" onClick={handleGenerate} type="button" disabled={saving}>
+            {saving ? "Saving..." : "Generate checkpoint →"}
           </button>
         </div>
       </div>

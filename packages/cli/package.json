@@ -1,0 +1,25 @@
+{
+  "name": "@ckpt/cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "ckpt": "./dist/cli.mjs"
+  },
+  "main": "./dist/cli.mjs",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ckpt/shared": "workspace:*",
+    "better-sqlite3": "^11.0.0",
+    "commander": "^13.0.0",
+    "execa": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5"
+  }
+}
