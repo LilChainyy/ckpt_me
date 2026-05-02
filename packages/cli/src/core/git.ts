@@ -11,7 +11,7 @@ export function run(
     return {
       stdout: result.stdout ?? '',
       stderr: result.stderr ?? '',
-      exitCode: result.exitCode,
+      exitCode: result.exitCode ?? 0,
     };
   } catch (error: any) {
     if (error.exitCode !== undefined) {

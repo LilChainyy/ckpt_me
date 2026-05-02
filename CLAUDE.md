@@ -1,4 +1,8 @@
-# ckpt
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What is ckpt
 
 The reasoning layer for every code change. Captures *why* code changed — constraints, dead ends, reasoning — and surfaces it in pull requests.
 
@@ -8,22 +12,47 @@ The reasoning layer for every code change. Captures *why* code changed — const
 
 Everything else (compare view, timeline, analytics, compose, dashboard, auth) is disabled/hidden until Phase 1 is validated.
 
+## Commands
+
+This is a pnpm monorepo orchestrated by Turborepo. Node 22.
+
+```bash
+pnpm install              # Install all dependencies
+pnpm build                # Build all packages (turbo)
+pnpm dev                  # Dev mode for all packages (turbo)
+pnpm lint                 # Lint all packages (turbo)
+pnpm typecheck            # Type-check all packages (turbo, depends on build)
+
+# Testing (vitest)
+pnpm test                 # Run all tests once
+pnpm test:watch           # Run tests in watch mode
+pnpm test:coverage        # Run tests with v8 coverage
+npx vitest run packages/shared/src/__tests__/schemas.test.ts  # Run a single test file
+
+# Database (Prisma, from apps/web)
+cd apps/web && npx prisma generate   # Generate Prisma client
+cd apps/web && npx prisma db push    # Push schema to database
+cd apps/web && npx prisma studio     # Open Prisma Studio
+
+# Individual packages
+pnpm --filter @ckpt/web dev          # Run Next.js dev server
+pnpm --filter @ckpt/shared build     # Build shared package
+pnpm --filter @ckpt/mcp build        # Build MCP server
+pnpm --filter @ckpt/cli build        # Build CLI
+```
+
 ## Monorepo Structure
 
 ```
 apps/
   web/       → Next.js 15 frontend + API routes (deployed to Vercel)
 packages/
-  shared/    → @ckpt/shared (types, Zod schemas, constants)
-  cli/       → @ckpt/cli (TypeScript CLI, local SQLite)
-  mcp/       → @ckpt/mcp (MCP server — the core product)
+  shared/    → @ckpt/shared (types, Zod schemas, constants) — built with tsup
+  cli/       → @ckpt/cli (TypeScript CLI, local SQLite) — built with tsup
+  mcp/       → @ckpt/mcp (MCP server — the core product) — built with tsup
 ```
 
-Full-stack TypeScript. API routes live in `apps/web/app/api/`.
-
-## Database
-
-Prisma ORM with Neon Postgres (prod) / SQLite (dev). Schema at `apps/web/prisma/schema.prisma`.
+Full-stack TypeScript. API routes live in `apps/web/app/api/v1/`. Packages use ES2022 target, apps/web uses ES2017.
 
 ## The Core Loop
 
@@ -35,6 +64,10 @@ AI agent (Claude Code / Cursor / Codex)
   → GitHub App posts it as a PR comment
 ```
 
+## Database
+
+Prisma ORM with Neon Postgres (prod) / SQLite (dev). Schema at `apps/web/prisma/schema.prisma`. Environment variable: `DATABASE_URL`.
+
 ## Key Files
 
 - `packages/mcp/src/index.ts` — MCP server with 4 tools. This IS the product.
@@ -43,6 +76,17 @@ AI agent (Claude Code / Cursor / Codex)
 - `apps/web/app/api/v1/checkpoints/route.ts` — checkpoint CRUD
 - `apps/web/app/api/v1/github/webhook/route.ts` — GitHub PR integration
 - `apps/web/app/checkpoint/[id]/brief/page.tsx` — the shareable brief page
+- `apps/web/app/lib/db.ts` — Prisma client and DB utilities
+- `apps/web/app/lib/auth.ts` — NextAuth configuration
+- `vitest.config.ts` — Test config with path aliases (`@` → apps/web, `@ckpt/shared` → packages/shared/src)
+
+## Architecture Notes
+
+- **Shared types flow one way**: `@ckpt/shared` exports types, Zod schemas, and constants consumed by all other packages. Never duplicate definitions.
+- **Build order matters**: Turbo handles this — `shared` must build before packages that depend on it. `turbo run build` resolves the graph automatically.
+- **API routes are Next.js Route Handlers** (app router) — not Pages API routes.
+- **MCP and CLI are standalone Node binaries** built with tsup, declared as `bin` in their package.json.
+- **Test coverage** is scoped to `packages/shared/src/**` and `apps/web/app/api/**`.
 
 ## Agents
 

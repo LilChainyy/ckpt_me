@@ -2,7 +2,6 @@ import Link from "next/link";
 import NavServer from "../../../components/nav-server";
 import ConstraintPill from "../../../components/constraint-pill";
 import DeadEndCard from "../../../components/dead-end-card";
-import CommentThread from "../../../components/comment-thread";
 import { getCheckpoint } from "../../../lib/api";
 
 interface BriefPageProps {
@@ -87,21 +86,6 @@ export default async function BriefPage({ params }: BriefPageProps) {
         </div>
       </div>
 
-      {/* Discussion */}
-      <div className="brief-section">
-        <div className="section-header">discussion</div>
-        <CommentThread checkpointId={id} />
-      </div>
-
-      {/* CTA */}
-      <div className="brief-cta">
-        <p className="brief-cta-text">
-          Ready to explore the implementation step by step?
-        </p>
-        <Link href={`/checkpoint/${id}/timeline`} className="btn btn-primary">
-          Explore the steps →
-        </Link>
-      </div>
     </main>
   );
 }
