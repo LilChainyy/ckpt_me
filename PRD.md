@@ -1,451 +1,242 @@
-# ckpt — Product Requirements Document
+# ckpt — Product Requirements Document (v2)
 
 > The reasoning layer for every code change.
-> A collaboration platform where engineers and their AI coding agents can compare changes, share reasoning, and learn from each other's decisions.
 
 ---
 
 ## Vision
 
-ckpt is the "GitHub for AI-era collaboration." Today, when an engineer or agent makes a code change, the *what* is captured in git — but the *why* is lost. Constraints, dead ends, reasoning traces, and decision context disappear between sessions. ckpt captures all of it and makes it visible, comparable, and actionable across people and agents.
+Git captures *what* changed. ckpt captures *why*.
 
-## Problem
+When an engineer or AI agent makes a code change, the reasoning — constraints, dead ends, trade-offs, rejected approaches — disappears. The next person (or the next AI session) starts from zero. ckpt captures that reasoning automatically and surfaces it where it matters most: in pull requests.
 
-1. **Context evaporates between sessions.** When an engineer hands off to another person or picks up work the next day, they lose the reasoning behind every decision — what was tried, what failed, and why.
-2. **AI agents are black boxes.** When Claude Code, Cursor, or Copilot generates code, there's no record of what the agent considered, rejected, or why it chose a particular approach.
-3. **No cross-agent visibility.** If Agent A and Agent B both work on the same problem, there's no way to compare their approaches, reasoning, or trade-offs side by side.
-4. **Constraints and dead ends get repeated.** Without explicit tracking, the next person (or agent) wastes time re-discovering the same constraints and re-attempting the same dead ends.
+## The Problem (validated by industry data)
+
+1. **Code review is the #1 bottleneck.** Teams generate 98% more PRs with AI tools, but reviews take 91% longer. Reviewers can't understand *why* code was written a certain way. (Source: Faros AI, LinearB 2026 analysis of 8.1M PRs)
+2. **Context evaporates between sessions.** Every new AI chat starts from scratch. No memory of what was tried, what failed, or what constraints exist.
+3. **Dead ends get repeated.** Without tracking, the next person (or agent) wastes time re-discovering the same failures.
+4. **96% of developers don't trust AI-generated code.** They need to verify it, but the reasoning behind AI decisions is invisible.
 
 ## Target Users
 
-- **Engineers using AI coding tools** (Claude Code, Cursor, Copilot, Codex, Gemini CLI)
-- **Teams doing agentic development** (multiple agents working in parallel on the same codebase)
-- **Engineering leads** who need visibility into how code decisions are made (by humans and agents)
+- Engineers using AI coding tools (Claude Code, Cursor, Copilot, Codex) who open PRs daily
+- Reviewers who spend hours trying to understand AI-generated code
+- Teams running multiple AI agents in parallel on the same codebase
 
 ---
 
-## Current State (~30% complete)
+## Product: One Core Loop
+
+```
+MCP captures reasoning → API stores it → GitHub delivers it to PRs
+```
+
+That's the entire product. Everything else is future scope.
+
+### How it works
+
+1. Engineer works with any MCP-compatible AI tool (Claude Code, Cursor, Codex, Copilot)
+2. The ckpt MCP server runs alongside the AI tool. The AI agent automatically calls ckpt tools to record reasoning, constraints, and dead ends as it works
+3. When the engineer runs `ckpt push` (or pushes to GitHub), reasoning syncs to the ckpt API
+4. When a PR is opened, the ckpt GitHub App auto-adds a reasoning summary with constraints and dead ends
+5. Reviewer sees the "why" immediately → reviews faster → approves or gives focused feedback
+
+### MCP Tools (the capture layer)
+
+The ckpt MCP server exposes 4 tools to AI agents:
+
+- `ckpt_save_reasoning` — save reasoning context for the current work
+- `ckpt_mark_dead_end` — record an approach that was tried and failed
+- `ckpt_add_constraint` — record a rule that must not be broken
+- `ckpt_get_context` — retrieve existing reasoning for the repo (so the agent doesn't repeat dead ends)
+
+These work with **any** MCP-compatible tool: Claude Code, Cursor, Codex, Copilot, Zed, JetBrains.
+
+---
+
+## Current State
 
 | Layer | Status | What exists |
 |-------|--------|-------------|
-| **CLI** | Functional | `ckpt add/commit/push/log/status/diff` — wraps git, captures reasoning per commit in local SQLite, syncs to API on push |
-| **Web** | Demo | Landing page, handoff composer, briefing view, step timeline with code diffs — all on mock data + localStorage |
-| **API** | Skeleton | 5 endpoints (health, sync, query by commit, query with filters) — in-memory dict, no persistence |
-
-### What works today
-- Reasoning capture at commit time (CLI)
-- Constraint and dead-end modeling (web types)
-- Step-by-step timeline with code diffs (web UI)
-- Local-first storage with sync-on-push pattern (CLI)
-
-### What doesn't work
-- The three layers don't talk to each other
-- No real database (API uses in-memory dict)
-- Web only loads mock data, can't read from API
-- Single-user only — no collaboration
-- No agent auto-capture (requires manual `--reasoning` flags)
+| **MCP server** | Functional skeleton | 4 tools implemented, syncs to API, needs testing and polish |
+| **CLI** | Functional | `ckpt commit/push/log/status/diff` — captures reasoning, syncs to API |
+| **API** | Working | Prisma + Neon Postgres, reasoning sync, checkpoint CRUD, protocol webhook |
+| **GitHub webhook** | Working skeleton | Receives PR events, looks up reasoning by commit hash, posts comment |
+| **Brief page** | Working | Shows reasoning, constraints, dead ends for a checkpoint. Needs to work without auth |
+| **Web (other pages)** | Built but not needed yet | Dashboard, compose, compare, timeline, history, analytics, comments |
 
 ---
 
-## Architecture
+## Phased Plan (new — 3 phases, 6 weeks)
+
+### Phase 1 — End-to-end capture and share (weeks 1–2)
+
+**Goal:** An engineer using Claude Code + ckpt MCP can capture reasoning automatically, push it, and share a brief link that anyone can view.
+
+#### What to build / fix:
+
+**MCP server (`packages/mcp/`)**
+- [ ] Auto-detect repo URL from git remote (don't require manual input)
+- [ ] Auto-detect current commit hash from git HEAD
+- [ ] Bundle reasoning + constraints + dead ends into a single checkpoint on `ckpt push`
+- [ ] Add `ckpt_save_checkpoint` tool that creates a full checkpoint (not just individual reasoning records)
+- [ ] Test with Claude Code on a real project (this repo)
+
+**API (`apps/web/app/api/`)**
+- [ ] Ensure `/api/v1/reasoning/sync` and `/api/v1/checkpoints` work without auth (add auth later)
+- [ ] Add endpoint: `GET /api/v1/checkpoints/by-repo?url=...` — list checkpoints for a repo
+- [ ] Ensure webhook endpoint works end-to-end
+- [ ] Switch off DEMO_MODE — use real data only
+
+**Brief page (`apps/web/app/checkpoint/[id]/brief/`)**
+- [ ] Make viewable without login (public read-only page)
+- [ ] Remove CommentThread section (re-add in Phase 4)
+- [ ] Remove "Explore the steps →" CTA to timeline (re-add in Phase 4)
+- [ ] Clean up: this is the "share link" destination — should be self-contained
+
+**CLI (`packages/cli/`)**
+- [ ] `ckpt push` should auto-create a checkpoint from accumulated reasoning records
+- [ ] Print the brief URL after push: "View reasoning: https://ckpt-web.vercel.app/checkpoint/{id}/brief"
+
+**Web — disable/hide (don't delete):**
+- [ ] Remove from nav: Checkpoints, Brief, Timeline links
+- [ ] Hide routes behind feature flag or simply remove from nav:
+  - `/compose` — handoff composer
+  - `/compare` — side-by-side comparison
+  - `/analytics` — reasoning analytics
+  - `/checkpoint/[id]/timeline` — step timeline
+  - `/checkpoint/[id]/history` — version history
+  - `/dashboard` — authenticated dashboard (Phase 4)
+- [ ] Replace landing page with simple "what is ckpt" + install instructions + link to docs
+- [ ] Nav should only show: logo, docs link, and "your checkpoints" (once auth exists)
+
+---
+
+### Phase 2 — GitHub PR integration (weeks 3–4)
+
+**Goal:** When a PR is opened, ckpt auto-adds reasoning summary as a PR comment with a link to the full brief.
+
+#### What to build / fix:
+
+**GitHub App**
+- [ ] Register a GitHub App (not just a webhook) so teams can install it on their repos
+- [ ] On PR opened/synchronized: look up reasoning records by commit hashes in the PR
+- [ ] Also look up the checkpoint for the repo/branch if one exists
+- [ ] Format PR comment with: constraints (tagged), dead ends (tagged), reasoning summary, link to full brief
+
+**PR comment format (what the reviewer sees):**
+```markdown
+## ☐ ckpt reasoning
+
+**Constraints:**
+- 🟡 No new Redis instances — infra budget frozen until Q3
+- 🟡 p99 latency must stay under 5ms
+
+**Dead ends:**
+- 🔴 Tried sliding window — race condition under burst traffic
+- 🔴 Tried Redis rate limiter — violated latency constraint
+
+**Reasoning:** Chose in-memory token bucket. Handles single-instance load within constraints. Added TODO for Redis migration in Q3.
+
+→ [View full reasoning brief](https://ckpt-web.vercel.app/checkpoint/{id}/brief)
+
+*Auto-captured by ckpt MCP · Claude Code*
+```
+
+**Improvements to webhook (`apps/web/app/api/v1/github/webhook/route.ts`):**
+- [ ] Include constraints and dead ends in comment (currently only shows raw reasoning text)
+- [ ] Parse metadata to extract structured constraint/dead-end records
+- [ ] Add "View full brief" link to the checkpoint page
+- [ ] Handle edge cases: no reasoning found, multiple checkpoints per PR
+
+---
+
+### Phase 3 — Polish and multi-tool support (weeks 5–6)
+
+**Goal:** Works reliably across Claude Code, Cursor, and Codex. Ready for other engineers to try.
+
+#### What to build:
+
+- [ ] Test MCP server with Cursor (should work out of the box since Cursor supports MCP)
+- [ ] Test MCP server with Codex CLI (should work — Codex supports MCP via config.toml)
+- [ ] Write setup docs: "Add ckpt to your project in 2 minutes"
+- [ ] Add agent detection: which AI tool captured the reasoning (read from env vars)
+- [ ] Add npm package publish for `@ckpt/mcp` so engineers can `npx @ckpt/mcp` to run the server
+- [ ] Error handling and retry logic in MCP server
+- [ ] Rate limiting on API endpoints
+
+---
+
+### Phase 4 — Re-enable features based on demand (future)
+
+Only build these when users actually ask for them:
+
+- [ ] Auth + dashboard (when teams need to manage checkpoints)
+- [ ] Compare view (when teams want to compare agent approaches)
+- [ ] Timeline view (when users want step-by-step detail)
+- [ ] Comments/discussion (when teams want to discuss reasoning)
+- [ ] Analytics (when leads want visibility into reasoning coverage)
+- [ ] Compose page (when users want to manually create checkpoints)
+
+---
+
+## Architecture (simplified)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    ckpt Platform                         │
-│                                                         │
-│  ┌──────────┐    ┌──────────┐    ┌───────────────────┐  │
-│  │  CLI     │    │   API    │    │      Web UI       │  │
-│  │          │───▶│          │◀───│                   │  │
-│  │ ckpt add │    │ FastAPI  │    │ Next.js           │  │
-│  │ ckpt     │    │ Postgres │    │                   │  │
-│  │  commit  │    │          │    │ Dashboard         │  │
-│  │ ckpt     │    │ Auth     │    │ Timeline Explorer │  │
-│  │  push    │    │          │    │ Compare View      │  │
-│  └──────────┘    └──────────┘    └───────────────────┘  │
-│       │                                                  │
-│  ┌──────────┐                                           │
-│  │  Agent   │                                           │
-│  │  Hooks   │                                           │
-│  │          │                                           │
-│  │ Claude   │                                           │
-│  │ Cursor   │                                           │
-│  │ Copilot  │                                           │
-│  └──────────┘                                           │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## Phased Plan
-
-### Phase 1 — Wire It Together (foundation)
-
-**Goal:** Make CLI, API, and Web actually connected. A reasoning record created via CLI shows up in the web UI.
-
-#### 1.1 Add a real database to the API
-
-**What:** Replace the in-memory `_reasoning_store` dict with PostgreSQL (Supabase or Neon for managed hosting).
-
-**Changes in `apps/api`:**
-- Add `sqlalchemy` + `asyncpg` (or `psycopg`) dependencies
-- Create `models.py` with SQLAlchemy ORM model for `reasoning` table matching CLI schema:
-  ```
-  reasoning:
-    id            TEXT PRIMARY KEY
-    commit_hash   TEXT (indexed)
-    reasoning     TEXT
-    author        TEXT
-    timestamp     TIMESTAMPTZ
-    files         JSONB
-    parent_hash   TEXT
-    metadata      JSONB
-    synced        INTEGER DEFAULT 0
-    repo_url      TEXT (indexed)     ← NEW: identify which repo
-    created_at    TIMESTAMPTZ
-    updated_at    TIMESTAMPTZ
-  ```
-- Create `database.py` with connection pool, session factory
-- Add Alembic for schema migrations
-- Update all endpoints in `src/index.py` to use database sessions instead of dict
-- Add `repo_url` field to `ReasoningRecord` Pydantic model
-- Add CORS middleware (`origins=["https://ckpt-web.vercel.app", "http://localhost:3000"]`)
-- Add `DATABASE_URL` env var support
-
-**Endpoints to update:**
-- `POST /api/v1/reasoning/sync` — INSERT records into Postgres
-- `GET /api/v1/reasoning/{commit_hash}` — SELECT from Postgres
-- `GET /api/v1/reasoning` — SELECT with filters from Postgres
-
-#### 1.2 CLI sends repo context
-
-**What:** Include repo identity so the API knows which repo records belong to.
-
-**Changes in `packages/cli`:**
-- Add `get_repo_url()` to `core/git.py` — reads `git remote get-url origin`
-- Add `repo_url` field to reasoning records in `storage/local.py`
-- Update `sync/client.py` to include `repo_url` in sync payload
-- Update `storage/schema.py` with migration 2: add `repo_url` column to reasoning table
-
-#### 1.3 Web reads from API instead of mock data
-
-**What:** Replace localStorage/mock data with API calls. Keep mock data as fallback for demo mode.
-
-**Changes in `apps/web`:**
-- Create `lib/api.ts` — API client with functions:
-  - `fetchReasoningByCommit(commitHash: string): Promise<ReasoningRecord>`
-  - `fetchReasoningRecords(filters): Promise<ReasoningRecord[]>`
-  - `fetchCheckpoint(id: string): Promise<Checkpoint | null>`
-- Update `/checkpoint/[id]/brief/page.tsx` — try API first, fall back to mock data
-- Update `/checkpoint/[id]/timeline/timeline-client.tsx` — load from API
-- Add `NEXT_PUBLIC_API_URL` env var (default: `https://ckpt-api.vercel.app`)
-
-#### 1.4 Unify the data model
-
-**What:** The CLI stores flat `ReasoningRecord`s. The web expects rich `Checkpoint` objects with steps, constraints, dead ends. Bridge the gap.
-
-**Two options (pick one):**
-
-**Option A — Checkpoint is a first-class API resource:**
-- Add `checkpoints` table to API:
-  ```
-  checkpoints:
-    id            TEXT PRIMARY KEY
-    task          TEXT
-    author        TEXT
-    repo_url      TEXT
-    handoff_note  TEXT
-    open_items    JSONB
-    constraints   JSONB
-    dead_ends     JSONB
-    steps         JSONB
-    created_at    TIMESTAMPTZ
-    updated_at    TIMESTAMPTZ
-  ```
-- Add new endpoints:
-  - `POST /api/v1/checkpoints` — create checkpoint
-  - `GET /api/v1/checkpoints/{id}` — get checkpoint
-  - `GET /api/v1/checkpoints` — list checkpoints (with repo filter)
-  - `PUT /api/v1/checkpoints/{id}` — update checkpoint
-- CLI `ckpt push` optionally bundles reasoning records into a checkpoint
-- Web compose form POSTs to API instead of localStorage
-
-**Option B — Checkpoint is assembled on-the-fly from reasoning records:**
-- API groups reasoning records by session/branch into checkpoint-like views
-- Less data modeling, but more complex query logic
-- Harder to attach constraints and dead ends
-
-**Recommendation: Option A.** Checkpoints are the core product concept — they deserve a first-class table.
-
----
-
-### Phase 2 — Multi-User & Auth
-
-**Goal:** Multiple people can share, view, and collaborate on checkpoints within a team.
-
-#### 2.1 Authentication
-
-**What:** Add user identity so reasoning records and checkpoints are owned.
-
-**Changes:**
-- Add auth to API (options: GitHub OAuth, API keys, or JWT)
-  - Recommended: **GitHub OAuth** — users already have GitHub accounts, and ckpt is git-native
-- Add `users` table:
-  ```
-  users:
-    id            TEXT PRIMARY KEY
-    github_id     TEXT UNIQUE
-    username      TEXT
-    email         TEXT
-    avatar_url    TEXT
-    created_at    TIMESTAMPTZ
-  ```
-- Add `user_id` foreign key to `reasoning` and `checkpoints` tables
-- CLI: `ckpt login` command — opens browser for OAuth flow, stores token in `~/.ckpt/auth.json`
-- API: auth middleware that validates tokens on all write endpoints
-- Web: login page, session management, redirect unauthenticated users
-
-#### 2.2 Teams and repos
-
-**What:** Group users into teams, associate repos with teams.
-
-**Changes:**
-- Add `teams` and `team_members` tables:
-  ```
-  teams:
-    id            TEXT PRIMARY KEY
-    name          TEXT
-    slug          TEXT UNIQUE
-    created_at    TIMESTAMPTZ
-
-  team_members:
-    team_id       TEXT REFERENCES teams(id)
-    user_id       TEXT REFERENCES users(id)
-    role          TEXT (owner | member)
-    PRIMARY KEY (team_id, user_id)
-  ```
-- Add `repos` table:
-  ```
-  repos:
-    id            TEXT PRIMARY KEY
-    team_id       TEXT REFERENCES teams(id)
-    url           TEXT UNIQUE
-    name          TEXT
-    created_at    TIMESTAMPTZ
-  ```
-- API: team CRUD endpoints, repo registration
-- Web: team settings page, repo list, member management
-- CLI: `ckpt init` — registers repo with team on first push
-
-#### 2.3 Shared checkpoint feed
-
-**What:** A dashboard where team members see all recent checkpoints across their repos.
-
-**Changes in `apps/web`:**
-- New route: `/dashboard` — lists recent checkpoints across team repos
-- Each card shows: task, author, repo, timestamp, constraint/dead-end counts
-- Click through to `/checkpoint/{id}/brief`
-- Filter by: repo, author, date range
-
----
-
-### Phase 3 — Agent Auto-Capture
-
-**Goal:** Reasoning gets captured automatically from AI coding tools without manual `--reasoning` flags.
-
-#### 3.1 Git hook integration
-
-**What:** A post-commit hook that auto-captures context from the working environment.
-
-**Changes:**
-- Add `ckpt hooks install` command — installs post-commit hook in `.git/hooks/`
-- Hook detects if a commit was made during an active agent session
-- Captures: active files, recent terminal output, timestamp
-- Stores reasoning record with `source: "hook"` metadata
-
-#### 3.2 Claude Code integration (MCP server)
-
-**What:** An MCP server that Claude Code can use to read/write checkpoints natively.
-
-**Changes:**
-- Create `packages/mcp/` — MCP server implementation
-- Tools exposed to Claude Code:
-  - `ckpt_save_reasoning(reasoning, constraints?, dead_ends?)` — save reasoning for current work
-  - `ckpt_get_context(repo)` — retrieve existing checkpoints and reasoning for the repo
-  - `ckpt_mark_dead_end(title, attempt, outcome)` — record a dead end
-  - `ckpt_add_constraint(label, reason)` — record a constraint
-- Claude Code can call these tools during a session, auto-populating the checkpoint
-- Install via: add to `.claude/settings.json` mcpServers config
-
-#### 3.3 Agent session tracking
-
-**What:** Track which agent/tool produced each reasoning record.
-
-**Changes:**
-- Add `agent` field to reasoning records:
-  ```
-  agent:
-    tool          TEXT    (claude-code | cursor | copilot | manual)
-    model         TEXT    (claude-opus-4 | gpt-4o | etc.)
-    session_id    TEXT    (unique per session)
-  ```
-- CLI detects agent context from environment variables:
-  - `CLAUDE_CODE_SESSION` → claude-code
-  - `CURSOR_SESSION` → cursor
-  - Fallback → manual
-- Web displays agent badges on reasoning records and checkpoints
-
----
-
-### Phase 4 — Compare & Review
-
-**Goal:** Engineers and agents can compare approaches side-by-side and review each other's reasoning.
-
-#### 4.1 Compare view
-
-**What:** Side-by-side comparison of two checkpoints (or two agents' approaches to the same task).
-
-**Changes in `apps/web`:**
-- New route: `/compare?left={id}&right={id}`
-- Layout:
-  ```
-  ┌──────────────────────┬──────────────────────┐
-  │   Checkpoint A       │   Checkpoint B       │
-  │   (Sarah / Claude)   │   (James / Cursor)   │
-  ├──────────────────────┼──────────────────────┤
-  │ Steps timeline       │ Steps timeline       │
-  │ Constraints          │ Constraints          │
-  │ Dead ends            │ Dead ends            │
-  │ Final code diff      │ Final code diff      │
-  └──────────────────────┴──────────────────────┘
-  ```
-- Highlights: shared constraints, overlapping dead ends, divergent approaches
-- Can compare: same task by different people/agents, or same file across checkpoints
-
-#### 4.2 Reasoning review / comments
-
-**What:** Team members can comment on reasoning records, flag concerns, ask questions.
-
-**Changes:**
-- Add `comments` table:
-  ```
-  comments:
-    id              TEXT PRIMARY KEY
-    checkpoint_id   TEXT REFERENCES checkpoints(id)
-    step_id         TEXT (nullable, for step-level comments)
-    user_id         TEXT REFERENCES users(id)
-    body            TEXT
-    created_at      TIMESTAMPTZ
-  ```
-- API: CRUD endpoints for comments
-- Web: inline comment UI on briefing and timeline pages
-- Agents can also leave comments via MCP tools
-
-#### 4.3 Reasoning diff
-
-**What:** When a checkpoint is updated (new session picks up where the last left off), show what reasoning changed — not just code diffs, but reasoning diffs.
-
-**Changes:**
-- Track checkpoint versions (add `version` field or use a `checkpoint_versions` table)
-- `/checkpoint/{id}/history` — show evolution of reasoning over time
-- Diff display: what constraints were added/removed, what dead ends were discovered, how reasoning evolved
-
----
-
-### Phase 5 — Ecosystem & Scale
-
-**Goal:** ckpt works with any tool, any team size, any workflow.
-
-#### 5.1 Open protocol for reasoning capture
-
-**What:** Publish a spec so any tool can emit ckpt-compatible reasoning records.
-
-**Deliverables:**
-- Open spec (like Agent Trace by Cursor, but richer — includes constraints, dead ends, steps)
-- Reference implementations for popular tools
-- Webhook endpoint for tools to push reasoning to ckpt
-
-#### 5.2 GitHub / GitLab integration
-
-**What:** Surface ckpt data in pull request workflows.
-
-**Changes:**
-- GitHub App that:
-  - Adds reasoning context to PR descriptions automatically
-  - Shows constraint warnings on PRs that violate tracked constraints
-  - Links to ckpt timeline from PR comments
-- API: webhook endpoint for GitHub PR events
-
-#### 5.3 Reasoning analytics
-
-**What:** Team-level insights into how decisions are made.
-
-**Changes in `apps/web`:**
-- `/analytics` dashboard:
-  - How much reasoning is captured per repo, per author, per agent
-  - Most common constraints across repos
-  - Dead end patterns (what's being retried most)
-  - Agent vs human reasoning volume
-  - Code that ships with vs without reasoning
-
----
-
-## Implementation Priority & Dependencies
-
-```
-Phase 1: Wire It Together
-├── 1.1 Database (API)              ← START HERE
-├── 1.2 CLI repo context            ← can parallel with 1.1
-├── 1.3 Web reads from API          ← depends on 1.1
-└── 1.4 Unify data model            ← depends on 1.1
-
-Phase 2: Multi-User & Auth
-├── 2.1 Authentication              ← depends on Phase 1
-├── 2.2 Teams and repos             ← depends on 2.1
-└── 2.3 Shared checkpoint feed      ← depends on 2.2
-
-Phase 3: Agent Auto-Capture
-├── 3.1 Git hook integration        ← depends on Phase 1
-├── 3.2 Claude Code MCP server      ← depends on Phase 1
-└── 3.3 Agent session tracking      ← depends on 3.1 or 3.2
-
-Phase 4: Compare & Review
-├── 4.1 Compare view                ← depends on Phase 2
-├── 4.2 Comments                    ← depends on Phase 2
-└── 4.3 Reasoning diff              ← depends on 4.1
-
-Phase 5: Ecosystem & Scale
-├── 5.1 Open protocol               ← depends on Phase 3
-├── 5.2 GitHub integration          ← depends on Phase 2
-└── 5.3 Analytics                   ← depends on Phase 2
+┌─────────────────────────────────────────────────────┐
+│              Engineer's machine                      │
+│                                                      │
+│  ┌──────────────┐    ┌──────────────┐               │
+│  │ Claude Code  │    │  ckpt MCP    │               │
+│  │ / Cursor     │───▶│  server      │               │
+│  │ / Codex      │    │              │               │
+│  │ / Copilot    │    │ captures     │               │
+│  └──────────────┘    │ reasoning    │               │
+│                      └──────┬───────┘               │
+│                             │                        │
+│  ┌──────────────┐           │                        │
+│  │  ckpt CLI    │───────────┤                        │
+│  │  ckpt push   │           │                        │
+│  └──────────────┘           │                        │
+└─────────────────────────────┼────────────────────────┘
+                              │ sync
+                              ▼
+┌─────────────────────────────────────────────────────┐
+│              ckpt cloud                              │
+│                                                      │
+│  ┌──────────────┐    ┌──────────────┐               │
+│  │   API        │    │  Brief page  │               │
+│  │   (Next.js)  │    │  (public)    │               │
+│  │   Postgres   │    │              │               │
+│  └──────┬───────┘    └──────────────┘               │
+│         │                                            │
+│  ┌──────▼───────┐                                   │
+│  │  GitHub App  │                                   │
+│  │  webhook     │──▶ PR comment with reasoning      │
+│  └──────────────┘                                   │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Success Metrics
 
-| Metric | Phase 1 | Phase 2 | Phase 3+ |
-|--------|---------|---------|----------|
-| CLI → API → Web flow works end-to-end | Yes | Yes | Yes |
-| Reasoning persists across server restarts | Yes | Yes | Yes |
-| Multiple users can view same checkpoint | No | Yes | Yes |
-| Agent reasoning captured automatically | No | No | Yes |
-| Side-by-side comparison of approaches | No | No | Yes |
+| Metric | Phase 1 | Phase 2 | Phase 3 |
+|--------|---------|---------|---------|
+| MCP captures reasoning automatically | Yes | Yes | Yes |
+| Reasoning persists across sessions | Yes | Yes | Yes |
+| Shareable brief link works | Yes | Yes | Yes |
+| Reasoning appears in GitHub PRs | No | Yes | Yes |
 | Works with 3+ AI coding tools | No | No | Yes |
 
----
+## What we're NOT building (yet)
 
-## Technical Decisions to Make
+- No user accounts or auth (brief pages are public)
+- No team management
+- No compare view
+- No timeline view
+- No analytics dashboard
+- No compose/manual checkpoint creation
+- No comments or discussions
 
-1. **Database:** Supabase (Postgres + auth + realtime) vs Neon (just Postgres) vs self-hosted
-2. **Auth:** GitHub OAuth (recommended) vs API keys vs magic links
-3. **Checkpoint storage:** First-class table (recommended) vs assembled from reasoning records
-4. **MCP server language:** Python (consistent with CLI) vs TypeScript (consistent with web)
-5. **Deployment:** Stay on Vercel for both API + Web, or move API to Railway/Fly for persistent connections
-
----
-
-## Competitive Positioning
-
-See [competitive-landscape.md](./competitive-landscape.md) for full analysis.
-
-**ckpt's unique angle:** The only tool that combines reasoning traces + constraints + dead ends + visual timeline + cross-agent comparison in one platform. Entire captures reasoning but can't collaborate. Squad collaborates but doesn't capture reasoning richly. Git AI tracks attribution but not decisions. ckpt does all of it.
+These are all good ideas. They're just not Phase 1–3 ideas.

@@ -1,9 +1,8 @@
-import Link from 'next/link';
+'use client';
 
-/**
- * Shape of the user object passed to Nav for authenticated display.
- * Matches the subset of NextAuth Session["user"] that the nav needs.
- */
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
 interface NavUser {
   name?: string | null;
   email?: string | null;
@@ -12,29 +11,39 @@ interface NavUser {
 
 interface NavProps {
   breadcrumbs?: { label: string; href?: string }[];
-  /** When provided, shows user avatar + Dashboard link + sign-out form. */
   user?: NavUser | null;
-  /**
-   * Server action to call when the sign-out form is submitted.
-   * Required when `user` is provided.
-   */
   signOutAction?: () => Promise<void>;
 }
 
-/**
- * Shared navigation bar.
- *
- * This component is intentionally kept as a plain (non-async) component so it
- * can be imported by both Client Components and Server Components. Session
- * data is passed in via props -- see NavServer for a convenience wrapper
- * that reads the session automatically in Server Component contexts.
- */
+const navLinks = [
+  { label: 'Home', href: '/' },
+  { label: 'Checkpoints', href: '/dashboard' },
+  { label: 'Brief', href: '/checkpoint/demo/brief' },
+  { label: 'Timeline', href: '/checkpoint/demo/timeline' },
+];
+
 export default function Nav({ breadcrumbs, user, signOutAction }: NavProps) {
+  const pathname = usePathname();
+
   return (
     <nav className="nav">
       <Link href="/" className="nav-logo">
-        ckpt
+        <span className="nav-logo-icon">&#9684;</span>
+        <span className="nav-logo-text">ckpt</span>
       </Link>
+
+      <div className="nav-links">
+        {navLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={`nav-link${pathname === link.href ? ' nav-link--active' : ''}`}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
+
       {breadcrumbs && breadcrumbs.length > 0 && (
         <div className="nav-breadcrumbs">
           {breadcrumbs.map((crumb, i) => (
@@ -54,34 +63,34 @@ export default function Nav({ breadcrumbs, user, signOutAction }: NavProps) {
 
       <span className="nav-spacer" />
 
-      {user ? (
-        <div className="nav-user">
-          <Link href="/dashboard" className="nav-link">
-            Dashboard
+      <div className="nav-right">
+        <span className="nav-cli-badge">cli v0.4.2</span>
+        {user ? (
+          <div className="nav-user">
+            {user.image && (
+              <img
+                src={user.image}
+                alt={user.name ?? 'User avatar'}
+                className="nav-avatar"
+              />
+            )}
+            <span className="nav-user-name">
+              {user.name ?? user.email}
+            </span>
+            {signOutAction && (
+              <form action={signOutAction}>
+                <button type="submit" className="btn btn-signin">
+                  Sign out
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
+          <Link href="/login" className="btn btn-signin">
+            Sign in
           </Link>
-          {user.image && (
-            <img
-              src={user.image}
-              alt={user.name ?? 'User avatar'}
-              className="nav-avatar"
-            />
-          )}
-          <span className="nav-user-name">
-            {user.name ?? user.email}
-          </span>
-          {signOutAction && (
-            <form action={signOutAction}>
-              <button type="submit" className="btn-sign-out">
-                Sign out
-              </button>
-            </form>
-          )}
-        </div>
-      ) : (
-        <Link href="/login" className="nav-link">
-          Sign in
-        </Link>
-      )}
+        )}
+      </div>
     </nav>
   );
 }
