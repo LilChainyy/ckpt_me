@@ -52,7 +52,7 @@ export default async function AnalyticsPage() {
   }));
 
   const reasoningByRepo = repoGroups
-    .filter((g) => g.repoUrl !== null)
+    .filter((g: any) => g.repoUrl !== null)
     .map((g: any) => ({
       repoUrl: g.repoUrl as string,
       count: g._count.id,
