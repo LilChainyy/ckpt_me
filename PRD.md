@@ -96,7 +96,7 @@ These work with **any** MCP-compatible tool: Claude Code, Cursor, Codex, Copilot
 
 **CLI (`packages/cli/`)**
 - [ ] `ckpt push` should auto-create a checkpoint from accumulated reasoning records
-- [ ] Print the brief URL after push: "View reasoning: https://ckpt-web.vercel.app/checkpoint/{id}/brief"
+- [ ] Print the brief URL after push: "View reasoning: https://ckpt-me-web.vercel.app/checkpoint/{id}/brief"
 
 **Web — disable/hide (don't delete):**
 - [ ] Remove from nav: Checkpoints, Brief, Timeline links
@@ -138,7 +138,7 @@ These work with **any** MCP-compatible tool: Claude Code, Cursor, Codex, Copilot
 
 **Reasoning:** Chose in-memory token bucket. Handles single-instance load within constraints. Added TODO for Redis migration in Q3.
 
-→ [View full reasoning brief](https://ckpt-web.vercel.app/checkpoint/{id}/brief)
+→ [View full reasoning brief](https://ckpt-me-web.vercel.app/checkpoint/{id}/brief)
 
 *Auto-captured by ckpt MCP · Claude Code*
 ```

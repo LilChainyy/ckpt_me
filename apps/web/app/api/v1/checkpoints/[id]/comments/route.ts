@@ -24,7 +24,7 @@ export async function GET(
     },
   });
 
-  const result = comments.map((comment) => ({
+  const result = comments.map((comment: any) => ({
     id: comment.id,
     checkpointId: comment.checkpointId,
     stepId: comment.stepId,

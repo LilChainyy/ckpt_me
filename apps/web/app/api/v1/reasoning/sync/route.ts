@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { syncRequestSchema } from '@ckpt/shared';
 
@@ -14,8 +13,8 @@ export async function POST(request: NextRequest) {
   const syncedIds: string[] = [];
 
   for (const record of parsed.data.records) {
-    const metadata = (record.metadata ?? {}) as Prisma.InputJsonValue;
-    const files = (record.files ?? []) as Prisma.InputJsonValue;
+    const metadata = (record.metadata ?? {}) as any;
+    const files = (record.files ?? []) as any;
 
     await prisma.reasoning.upsert({
       where: { id: record.id },

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ckpt-reasoning": {
+      "command": "node",
+      "args": ["/Users/lilchainyy/workspace/ckpt/packages/mcp/dist/index.mjs"]
+    }
+  }
+}
