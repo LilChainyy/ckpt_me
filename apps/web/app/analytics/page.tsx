@@ -46,14 +46,14 @@ export default async function AnalyticsPage() {
   const totalCheckpoints = checkpointCount;
   const totalReasoning = reasoningCount;
 
-  const checkpointsByAuthor = authorGroups.map((g) => ({
+  const checkpointsByAuthor = authorGroups.map((g: any) => ({
     author: g.author,
     count: g._count.id,
   }));
 
   const reasoningByRepo = repoGroups
     .filter((g) => g.repoUrl !== null)
-    .map((g) => ({
+    .map((g: any) => ({
       repoUrl: g.repoUrl as string,
       count: g._count.id,
     }));
