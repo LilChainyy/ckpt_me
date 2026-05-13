@@ -1,22 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
+import { syncLimiter } from '@/lib/rate-limit';
+import { withRateLimit } from '@/lib/with-rate-limit';
 
-export async function GET(
+async function handleGET(
   _request: NextRequest,
   { params }: { params: Promise<{ commitHash: string }> }
 ) {
-  const { commitHash } = await params;
+  try {
+    const { commitHash } = await params;
 
-  const record = await prisma.reasoning.findFirst({
-    where: { commitHash },
-  });
+    const record = await prisma.reasoning.findFirst({
+      where: { commitHash },
+    });
 
-  if (!record) {
-    return NextResponse.json(
-      { error: 'not found', commitHash },
-      { status: 404 }
-    );
+    if (!record) {
+      return NextResponse.json(
+        { error: 'not found', commitHash },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(record);
+  } catch (error) {
+    logger.error('Internal server error', { route: 'GET /api/v1/reasoning/[commitHash]', error: String(error) });
+    return NextResponse.json({ error: 'internal server error' }, { status: 500 });
   }
-
-  return NextResponse.json(record);
 }
+
+export const GET = withRateLimit(syncLimiter, handleGET);

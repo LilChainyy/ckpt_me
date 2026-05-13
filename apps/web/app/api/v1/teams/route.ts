@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import { auth } from '@/lib/auth';
 
 /**
@@ -14,12 +15,17 @@ export async function GET() {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const teams = await prisma.team.findMany({
-    where: { members: { some: { userId: session.user.id } } },
-    include: { members: true, repos: true },
-  });
+  try {
+    const teams = await prisma.team.findMany({
+      where: { members: { some: { userId: session.user.id } } },
+      include: { members: true, repos: true },
+    });
 
-  return NextResponse.json({ teams });
+    return NextResponse.json({ teams });
+  } catch (error) {
+    logger.error('Internal server error', { route: 'GET /api/v1/teams', error: String(error) });
+    return NextResponse.json({ error: 'internal server error' }, { status: 500 });
+  }
 }
 
 /**
@@ -38,20 +44,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const { name, slug } = await request.json();
-  if (!name || !slug) {
-    return NextResponse.json({ error: 'name and slug required' }, { status: 400 });
+  let body: { name?: string; slug?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid JSON body' }, { status: 400 });
   }
 
-  const team = await prisma.team.create({
-    data: {
-      name,
-      slug,
-      members: {
-        create: { userId: session.user.id, role: 'owner' },
-      },
-    },
-  });
+  try {
+    const { name, slug } = body;
+    if (!name || !slug) {
+      return NextResponse.json({ error: 'name and slug required' }, { status: 400 });
+    }
 
-  return NextResponse.json(team, { status: 201 });
+    const team = await prisma.team.create({
+      data: {
+        name,
+        slug,
+        members: {
+          create: { userId: session.user.id, role: 'owner' },
+        },
+      },
+    });
+
+    return NextResponse.json(team, { status: 201 });
+  } catch (error) {
+    logger.error('Internal server error', { route: 'POST /api/v1/teams', error: String(error) });
+    return NextResponse.json({ error: 'internal server error' }, { status: 500 });
+  }
 }
